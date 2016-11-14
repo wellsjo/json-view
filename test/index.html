@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <link rel="stylesheet" href="example.css" type="text/css">
+</head>
+
+<body>
+  <div class="output"></div>
+  <script src="/../build/json-to-html.js"></script>
+  <script>
+    const input = {
+      hello: "world",
+      val: 5,
+      on: false,
+      arr: [1, 2, null, {
+        some: "val",
+        oh: null,
+        that: 4343.23042,
+        kay: true
+      }],
+      some: null
+    }
+    const el = document.querySelector('.output')
+    new JSONView({
+      el: el,
+      data: input
+    })
+  </script>
+</body>
+
+</html>

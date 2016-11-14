@@ -1,0 +1,44 @@
+body {
+  font-family: monaco;
+  font-size: 15px;
+}
+
+li {
+  list-style: none;
+}
+
+.open-bracket {
+  color: black;
+}
+
+.open-bracket:hover {
+  color: black;
+}
+
+.comma {
+  color: black;
+}
+
+.bracket-hover {
+  color: red;
+}
+
+.string {
+  color: #66CD00;
+}
+
+.number {
+  color: #0EBFE9;
+}
+
+.null {
+  color: gray;
+}
+
+.boolean {
+  color: #BF3EFF;
+}
+
+.node-bracket:hover {
+  cursor: pointer;
+}
