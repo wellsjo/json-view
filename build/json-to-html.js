@@ -15,6 +15,11 @@ var _createClass = function () { function defineProperties(target, props) { for 
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var EventEmitter = require('events').EventEmitter;
 var uuid = require('node-uuid');
 var $ = require('jquery');
 
@@ -29,7 +34,8 @@ var COMMA = '<span class="comma">,</span>';
  * JSON Object view
  */
 
-var JSONView = function () {
+var JSONView = function (_EventEmitter) {
+  _inherits(JSONView, _EventEmitter);
 
   /**
    * Constructor
@@ -40,18 +46,14 @@ var JSONView = function () {
   function JSONView(options) {
     _classCallCheck(this, JSONView);
 
-    this.level = options.level || 1;
-    this.data = options.data;
-    this.type = getType(this.data);
-    this.last = !!options.last;
-    this.id = options.id || null;
-    this.el = $(options.el);
-    if (this.type == 'array') {
-      this.size = this.data.length;
-    } else {
-      this.size = Object.keys(this.data).length;
-    }
-    this.render();
+    var _this = _possibleConstructorReturn(this, (JSONView.__proto__ || Object.getPrototypeOf(JSONView)).call(this));
+
+    _this.level = options.level || 1;
+    _this.data = options.data;
+    _this.type = getType(_this.data);
+    _this.el = $(options.el);
+    _this.render();
+    return _this;
   }
 
   /**
@@ -61,22 +63,22 @@ var JSONView = function () {
   _createClass(JSONView, [{
     key: 'render',
     value: function render() {
-      var _this = this;
+      var _this2 = this;
 
-      // Output id is to destroy instance, so only used on the top level
-      var outputId = '';
-      if (this.level == 1) {
-        outputId = 'data-output-id="' + this.id + '"';
-      }
-
-      // This ID is used for matching brackets
-      var bracketId = uuid.v4();
-
-      // JSON node html
-      var html = '\n      <span class="node-container" ' + outputId + '>\n        <span class="node-top node-bracket" data-bracket-id="' + bracketId + '" />\n          <span class="node-content-wrapper">\n            <ul class="node-body" />\n          </cspan>\n          <span class="node-bottom node-bracket" data-bracket-id="' + bracketId + '" /></span>';
+      var marker = this.level == 1 ? 'data-output-id="' + this.id + '"' : '';
+      var bracketId = 'data-bracket-id="' + uuid.v4() + '"';
+      var html = '\n      <span class="node-container" ' + marker + '>\n        <span class="node-top node-bracket" ' + bracketId + '/>\n          <span class="node-content-wrapper">\n            <ul class="node-body" />\n          </cspan>\n          <span class="node-bottom node-bracket" ' + bracketId + '/></span>';
 
       // Render HTML on page
       this.el.html(html);
+
+      var selector = '[' + bracketId + ']';
+      var self = this;
+      $(selector).hover(function () {
+        var elements = [$(this), self.el.find(selector)];
+        self.emit('bracket-hover', elements);
+        console.log(elements);
+      });
 
       // Easily access elements
       this.elements = {
@@ -87,18 +89,21 @@ var JSONView = function () {
         ul: this.el.find('.node-body')
       };
 
-      // Place brackets
+      // Render each child individually
       var brackets = this.getBrackets();
       this.elements.top.html(brackets.top);
-      Object.keys(this.data).forEach(function (key, index) {
-        var last = index + 1 == _this.size;
-        _this.renderChild(key, last);
+      Object.keys(this.data).forEach(function (key, index, set) {
+        var last = index + 1 == set.length;
+        _this2.renderChild(key, last);
       });
       this.elements.bottom.html(brackets.bottom);
     }
 
     /**
      * Render children nodes
+     *
+     * @param {String} key
+     * @param {Boolean} last
      */
 
   }, {
@@ -106,38 +111,43 @@ var JSONView = function () {
     value: function renderChild(key, last) {
       var val = this.data[key];
       var type = getType(val);
-
       var li = $('<li/>');
       var left = $('<span/>');
       var right = $('<span/>');
       if (this.type == 'object') {
-        var keyHTML = new Leaf({
-          last: false,
-          type: 'key',
-          data: key
-        }).html;
-        left.append(keyHTML + ': ');
+        left.append(this.getLeaf(key, 'key', false) + ': ');
       }
-
       left.append(right);
       li.append(left);
       this.elements.ul.append(li);
-
-      var opts = {
-        level: this.level + 1,
-        type: type,
-        last: last,
-        data: val
-      };
-
-      var child = void 0;
-      if (null !== val && 'object' == (typeof val === 'undefined' ? 'undefined' : _typeof(val))) {
-        opts.el = right;
-        child = new JSONView(opts);
+      if ('array' == type || 'object' == type) {
+        new JSONView({
+          level: this.level + 1,
+          data: val,
+          el: right
+        });
       } else {
-        child = new Leaf(opts);
-        right.append(child.html);
+        right.append(this.getLeaf(val, type, last));
       }
+    }
+
+    /**
+     * Returns leaf node (JSON value) HTML
+     *
+     * @param {String|Number|Boolean} val
+     * @param {String} type
+     * @param {Boolean} last
+     * @return {String}
+     */
+
+  }, {
+    key: 'getLeaf',
+    value: function getLeaf(val, type, last) {
+      var comma = last || type == 'key' ? '' : '' + COMMA;
+      if (type == 'string') {
+        val = '"' + val + '"';
+      }
+      return '<span class="' + type + '">' + val + '</span>' + comma;
     }
 
     /**
@@ -147,11 +157,11 @@ var JSONView = function () {
   }, {
     key: 'getBrackets',
     value: function getBrackets() {
+      var top = 'array' == this.type ? '[' : '{';
       var bottom = 'array' == this.type ? ']' : '}';
       if (this.level > 1 && !this.last) {
         bottom += COMMA;
       }
-      var top = 'array' == this.type ? '[' : '{';
       return {
         bottom: bottom,
         closed: '' + top + CLOSED + bottom + '}',
@@ -161,43 +171,12 @@ var JSONView = function () {
   }]);
 
   return JSONView;
-}();
-
-/**
- * Construct a leaf node
- *
- * Can be null, number, string, date, url
- */
-
-var Leaf =
-
-/**
- * Constructor
- *
- * @param {Object} options
- */
-
-function Leaf(options) {
-  _classCallCheck(this, Leaf);
-
-  var last = !!options.last;
-  var type = options.type;
-  var data = options.data;
-
-  // If this is the leaf element, don't show comma
-  var comma = last || type == 'key' ? '' : '' + COMMA;
-
-  // Quotes for strings
-  if (type == 'string') {
-    data = '"' + data + '"';
-  }
-  this.html = '<span class="' + type + '">' + data + '</span>' + comma;
-};
+}(EventEmitter);
 
 /**
  * Determine the type of input
  *
- * @param {Mixed} input
+ * @param {Unknown} input
  * @return {String} The determined type
  */
 
@@ -213,7 +192,7 @@ function getType(input) {
 
 module.exports = JSONView;
 
-},{"jquery":95,"node-uuid":98}],2:[function(require,module,exports){
+},{"events":82,"jquery":95,"node-uuid":98}],2:[function(require,module,exports){
 var asn1 = exports;
 
 asn1.bignum = require('bn.js');

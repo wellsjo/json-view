@@ -8,6 +8,7 @@
  * Dependencies
  */
 
+const EventEmitter = require('events').EventEmitter
 const uuid = require('node-uuid')
 const $ = require('jquery')
 
@@ -22,7 +23,7 @@ const COMMA = '<span class="comma">,</span>'
  * JSON Object view
  */
 
-class JSONView {
+class JSONView extends EventEmitter {
 
   /**
    * Constructor
@@ -31,17 +32,11 @@ class JSONView {
    */
 
   constructor(options) {
+    super()
     this.level = options.level || 1
     this.data = options.data
     this.type = getType(this.data)
-    this.last = !!options.last
-    this.id = options.id || null
     this.el = $(options.el)
-    if (this.type == 'array') {
-      this.size = this.data.length
-    } else {
-      this.size = Object.keys(this.data).length
-    }
     this.render()
   }
 
@@ -50,27 +45,26 @@ class JSONView {
    */
 
   render() {
-
-    // Output id is to destroy instance, so only used on the top level
-    let outputId = ''
-    if (this.level == 1) {
-      outputId = `data-output-id="${this.id}"`
-    }
-
-    // This ID is used for matching brackets
-    let bracketId = uuid.v4()
-
-    // JSON node html
+    let marker = this.level == 1 ? `data-output-id="${this.id}"` : ''
+    let bracketId = `data-bracket-id="${uuid.v4()}"`
     let html = `
-      <span class="node-container" ${outputId}>
-        <span class="node-top node-bracket" data-bracket-id="${bracketId}" />
+      <span class="node-container" ${marker}>
+        <span class="node-top node-bracket" ${bracketId}/>
           <span class="node-content-wrapper">
             <ul class="node-body" />
           </cspan>
-          <span class="node-bottom node-bracket" data-bracket-id="${bracketId}" /></span>`
+          <span class="node-bottom node-bracket" ${bracketId}/></span>`
 
     // Render HTML on page
     this.el.html(html)
+
+    let selector = `[${bracketId}]`
+    let self = this
+    $(selector).hover(function() {
+      let elements = [$(this), self.el.find(selector)]
+      self.emit('bracket-hover', elements)
+      console.log(elements)
+    })
 
     // Easily access elements
     this.elements = {
@@ -81,11 +75,11 @@ class JSONView {
       ul: this.el.find('.node-body')
     }
 
-    // Place brackets
+    // Render each child individually
     let brackets = this.getBrackets()
     this.elements.top.html(brackets.top)
-    Object.keys(this.data).forEach((key, index) => {
-      let last = index + 1 == this.size
+    Object.keys(this.data).forEach((key, index, set) => {
+      let last = index + 1 == set.length
       this.renderChild(key, last)
     })
     this.elements.bottom.html(brackets.bottom)
@@ -93,43 +87,49 @@ class JSONView {
 
   /**
    * Render children nodes
+   *
+   * @param {String} key
+   * @param {Boolean} last
    */
 
   renderChild(key, last) {
     let val = this.data[key]
     let type = getType(val)
-
     let li = $('<li/>')
     let left = $('<span/>')
     let right = $('<span/>')
     if (this.type == 'object') {
-      let keyHTML = new Leaf({
-        last: false,
-        type: 'key',
-        data: key
-      }).html
-      left.append(keyHTML + ': ')
+      left.append(`${this.getLeaf(key, 'key', false)}: `)
     }
-
     left.append(right)
     li.append(left)
     this.elements.ul.append(li)
-
-    let opts = {
-      level: this.level + 1,
-      type: type,
-      last: last,
-      data: val
-    }
-
-    let child
-    if (null !== val && 'object' == typeof val) {
-      opts.el = right
-      child = new JSONView(opts)
+    if ('array' == type || 'object' == type) {
+      new JSONView({
+        level: this.level + 1,
+        data: val,
+        el: right
+      })
     } else {
-      child = new Leaf(opts)
-      right.append(child.html)
+      right.append(this.getLeaf(val, type, last))
     }
+  }
+
+  /**
+   * Returns leaf node (JSON value) HTML
+   *
+   * @param {String|Number|Boolean} val
+   * @param {String} type
+   * @param {Boolean} last
+   * @return {String}
+   */
+
+  getLeaf(val, type, last) {
+    let comma = last || type == 'key' ? '' : `${COMMA}`
+    if (type == 'string') {
+      val = `"${val}"`
+    }
+    return `<span class="${type}">${val}</span>${comma}`
   }
 
   /**
@@ -137,11 +137,11 @@ class JSONView {
    */
 
   getBrackets() {
+    let top = 'array' == this.type ? '[' : '{'
     let bottom = 'array' == this.type ? ']' : '}'
     if (this.level > 1 && !this.last) {
       bottom += COMMA
     }
-    let top = 'array' == this.type ? '[' : '{'
     return {
       bottom: bottom,
       closed: `${top}${CLOSED}${bottom}}`,
@@ -151,39 +151,9 @@ class JSONView {
 }
 
 /**
- * Construct a leaf node
- *
- * Can be null, number, string, date, url
- */
-
-class Leaf {
-
-  /**
-   * Constructor
-   *
-   * @param {Object} options
-   */
-
-  constructor(options) {
-    let last = !!options.last
-    let type = options.type
-    let data = options.data
-
-    // If this is the leaf element, don't show comma
-    let comma = last || type == 'key' ? '' : `${COMMA}`
-
-    // Quotes for strings
-    if (type == 'string') {
-      data = `"${data}"`
-    }
-    this.html = `<span class="${type}">${data}</span>${comma}`
-  }
-}
-
-/**
  * Determine the type of input
  *
- * @param {Mixed} input
+ * @param {Unknown} input
  * @return {String} The determined type
  */
 
