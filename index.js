@@ -67,7 +67,7 @@ class JSONView {
           <span class="node-content-wrapper">
             <ul class="node-body" />
           </cspan>
-          <span class="node-bottom node-bracket" data-bracket-id="${bracketId}" /></span>`.trim()
+          <span class="node-bottom node-bracket" data-bracket-id="${bracketId}" /></span>`
 
     // Render HTML on page
     this.el.html(html)
@@ -108,7 +108,7 @@ class JSONView {
         type: 'key',
         data: key
       }).html
-      left.append(keyHTML + ':')
+      left.append(keyHTML + ': ')
     }
 
     left.append(right)
@@ -138,10 +138,13 @@ class JSONView {
 
   getBrackets() {
     let bottom = 'array' == this.type ? ']' : '}'
+    if (this.level > 1 && !this.last) {
+      bottom += COMMA
+    }
     let top = 'array' == this.type ? '[' : '{'
     return {
       bottom: bottom,
-      close: `${top}${CLOSED}${bottom}}`,
+      closed: `${top}${CLOSED}${bottom}}`,
       top: top
     }
   }
@@ -173,12 +176,7 @@ class Leaf {
     if (type == 'string') {
       data = `"${data}"`
     }
-
-    // Render html
-    this.html = `
-      <span class="leaf-container">
-        <span class="${type}">${data}</span><span>${comma}</span>
-      </span>`.trim()
+    this.html = `<span class="${type}">${data}</span>${comma}`
   }
 }
 

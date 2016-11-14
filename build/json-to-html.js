@@ -73,7 +73,7 @@ var JSONView = function () {
       var bracketId = uuid.v4();
 
       // JSON node html
-      var html = ('\n      <span class="node-container" ' + outputId + '>\n        <span class="node-top node-bracket" data-bracket-id="' + bracketId + '" />\n          <span class="node-content-wrapper">\n            <ul class="node-body" />\n          </cspan>\n          <span class="node-bottom node-bracket" data-bracket-id="' + bracketId + '" /></span>').trim();
+      var html = '\n      <span class="node-container" ' + outputId + '>\n        <span class="node-top node-bracket" data-bracket-id="' + bracketId + '" />\n          <span class="node-content-wrapper">\n            <ul class="node-body" />\n          </cspan>\n          <span class="node-bottom node-bracket" data-bracket-id="' + bracketId + '" /></span>';
 
       // Render HTML on page
       this.el.html(html);
@@ -116,7 +116,7 @@ var JSONView = function () {
           type: 'key',
           data: key
         }).html;
-        left.append(keyHTML + ':');
+        left.append(keyHTML + ': ');
       }
 
       left.append(right);
@@ -148,10 +148,13 @@ var JSONView = function () {
     key: 'getBrackets',
     value: function getBrackets() {
       var bottom = 'array' == this.type ? ']' : '}';
+      if (this.level > 1 && !this.last) {
+        bottom += COMMA;
+      }
       var top = 'array' == this.type ? '[' : '{';
       return {
         bottom: bottom,
-        close: '' + top + CLOSED + bottom + '}',
+        closed: '' + top + CLOSED + bottom + '}',
         top: top
       };
     }
@@ -188,9 +191,7 @@ function Leaf(options) {
   if (type == 'string') {
     data = '"' + data + '"';
   }
-
-  // Render html
-  this.html = ('\n      <span class="leaf-container">\n        <span class="' + type + '">' + data + '</span><span>' + comma + '</span>\n      </span>').trim();
+  this.html = '<span class="' + type + '">' + data + '</span>' + comma;
 };
 
 /**
