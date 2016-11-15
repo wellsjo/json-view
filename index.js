@@ -8,31 +8,26 @@
  * Dependencies
  */
 
-const EventEmitter = require('events').EventEmitter
 const uuid = require('node-uuid')
 const $ = require('jquery')
-
-/**
- * Constants
- */
-
-const CLOSED = '<span class="open-bracket">...</span>'
-const COMMA = '<span class="comma">,</span>'
 
 /**
  * JSON Object view
  */
 
-class JSONView extends EventEmitter {
+class JSONView {
 
   /**
    * Constructor
    *
    * @param {Object} options
+   * @param {Number} options.level
+   * @param {Object} options.data
+   * @param {Object} options.type
+   * @param {Object} options.el The element to render on
    */
 
   constructor(options) {
-    super()
     this.level = options.level || 1
     this.data = options.data
     this.last = options.last
@@ -58,38 +53,9 @@ class JSONView extends EventEmitter {
 
     // Render HTML on page
     this.el.html(html)
-    let self = this
-    let selector = `[${bracketId}]`
-
-    // Emit bracket hover events
-    $(selector).hover(function() {
-      let position = $(this).hasClass('node-top') ? 'top' : 'bottom'
-      let other = $(`.node-${position}[${bracketId}]`)
-      let data = {
-        match: other,
-        this: $(this),
-        type: self.type
-      }
-      console.log('event firing', data)
-      self.emit('bracket-hover', data)
-    })
-
-    $(selector).click(function() {
-      let position = $(this).hasClass('node-top') ? 'top' : 'bottom'
-      let other = $(`.node-${position}[${bracketId}]`)
-      let data = {
-        match: other,
-        this: $(this),
-        type: self.type
-      }
-      console.log('event firing', data)
-      self.emit('bracket-click', data)
-    })
 
     // Easily access elements
     this.elements = {
-      contentWrapper: this.el.find('.node-content-wrapper'),
-      container: this.el.find('.node-container'),
       bottom: this.el.find('.node-bottom'),
       top: this.el.find('.node-top'),
       ul: this.el.find('.node-body')
@@ -97,12 +63,17 @@ class JSONView extends EventEmitter {
 
     // Render each child individually
     let brackets = this.getBrackets()
-    this.elements.top.html(brackets.top)
-    Object.keys(this.data).forEach((key, index, set) => {
-      let last = index + 1 == set.length
-      this.renderChild(key, last)
-    })
-    this.elements.bottom.html(brackets.bottom)
+
+    if (isEmpty(this.data)) {
+      this.elements.ul.html(`${brackets.top}${brackets.bottom}`)
+    } else {
+      this.elements.top.html(brackets.top)
+      Object.keys(this.data).forEach((key, index, set) => {
+        let last = index + 1 == set.length
+        this.renderChild(key, last)
+      })
+      this.elements.bottom.html(brackets.bottom)
+    }
   }
 
   /**
@@ -125,12 +96,16 @@ class JSONView extends EventEmitter {
     li.append(left)
     this.elements.ul.append(li)
     if ('array' == type || 'object' == type) {
-      new JSONView({
-        level: this.level + 1,
-        last: last,
-        data: val,
-        el: right
-      })
+      if (isEmpty(val)) {
+        right.append(this.getLeaf(val, type, last))
+      } else {
+        new JSONView({
+          level: this.level + 1,
+          last: last,
+          data: val,
+          el: right
+        })
+      }
     } else {
       right.append(this.getLeaf(val, type, last))
     }
@@ -146,9 +121,15 @@ class JSONView extends EventEmitter {
    */
 
   getLeaf(val, type, last) {
-    let comma = last || type == 'key' ? '' : `${COMMA}`
-    if (type == 'string') {
+    let comma = last || type == 'key' ? '' : ','
+    if ('string' == type) {
       val = `"${val}"`
+    }
+    if ('array' == type) {
+      val = '[]'
+    }
+    if ('object' == type) {
+      val = '{}'
     }
     return `<span class="${type}">${val}</span>${comma}`
   }
@@ -160,13 +141,12 @@ class JSONView extends EventEmitter {
   getBrackets() {
     let top = 'array' == this.type ? '[' : '{'
     let bottom = 'array' == this.type ? ']' : '}'
-    console.log(this.last)
     if (this.level > 1 && !this.last) {
-      bottom = bottom + COMMA
+      bottom = bottom + ','
     }
     return {
       bottom: bottom,
-      closed: `${top}${CLOSED}${bottom}}`,
+      closed: `${top}${bottom}}`,
       top: top
     }
   }
@@ -183,6 +163,16 @@ function getType(input) {
   if (input === null) return 'null'
   if (Array.isArray(input)) return 'array'
   return typeof input
+}
+
+/**
+ * Determine if this (object or array) is empty
+ */
+
+function isEmpty(val) {
+  let emptyArray = 'array' == getType(val) && val.length === 0
+  let emptyObject = 'object' == getType(val) && Object.keys(val).length === 0
+  return emptyArray || emptyObject
 }
 
 /**

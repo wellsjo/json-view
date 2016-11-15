@@ -7,6 +7,10 @@ li {
   list-style: none;
 }
 
+.key {
+  color: black;
+}
+
 .leaf-container: {
   padding: none;
 }
@@ -36,7 +40,7 @@ li {
 }
 
 .null {
-  color: gray;
+  color: #696969;
 }
 
 .boolean {

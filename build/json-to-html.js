@@ -15,46 +15,34 @@ var _createClass = function () { function defineProperties(target, props) { for 
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-var EventEmitter = require('events').EventEmitter;
 var uuid = require('node-uuid');
 var $ = require('jquery');
-
-/**
- * Constants
- */
-
-var CLOSED = '<span class="open-bracket">...</span>';
-var COMMA = '<span class="comma">,</span>';
 
 /**
  * JSON Object view
  */
 
-var JSONView = function (_EventEmitter) {
-  _inherits(JSONView, _EventEmitter);
+var JSONView = function () {
 
   /**
    * Constructor
    *
    * @param {Object} options
+   * @param {Number} options.level
+   * @param {Object} options.data
+   * @param {Object} options.type
+   * @param {Object} options.el The element to render on
    */
 
   function JSONView(options) {
     _classCallCheck(this, JSONView);
 
-    var _this = _possibleConstructorReturn(this, (JSONView.__proto__ || Object.getPrototypeOf(JSONView)).call(this));
-
-    _this.level = options.level || 1;
-    _this.data = options.data;
-    _this.last = options.last;
-    _this.type = getType(_this.data);
-    _this.el = $(options.el);
-    _this.render();
-    return _this;
+    this.level = options.level || 1;
+    this.data = options.data;
+    this.last = options.last;
+    this.type = getType(this.data);
+    this.el = $(options.el);
+    this.render();
   }
 
   /**
@@ -64,7 +52,7 @@ var JSONView = function (_EventEmitter) {
   _createClass(JSONView, [{
     key: 'render',
     value: function render() {
-      var _this2 = this;
+      var _this = this;
 
       var marker = this.level == 1 ? 'data-output-id="' + this.id + '"' : '';
       var bracketId = 'data-bracket-id="' + uuid.v4() + '"';
@@ -72,38 +60,9 @@ var JSONView = function (_EventEmitter) {
 
       // Render HTML on page
       this.el.html(html);
-      var self = this;
-      var selector = '[' + bracketId + ']';
-
-      // Emit bracket hover events
-      $(selector).hover(function () {
-        var position = $(this).hasClass('node-top') ? 'top' : 'bottom';
-        var other = $('.node-' + position + '[' + bracketId + ']');
-        var data = {
-          match: other,
-          this: $(this),
-          type: self.type
-        };
-        console.log('event firing', data);
-        self.emit('bracket-hover', data);
-      });
-
-      $(selector).click(function () {
-        var position = $(this).hasClass('node-top') ? 'top' : 'bottom';
-        var other = $('.node-' + position + '[' + bracketId + ']');
-        var data = {
-          match: other,
-          this: $(this),
-          type: self.type
-        };
-        console.log('event firing', data);
-        self.emit('bracket-click', data);
-      });
 
       // Easily access elements
       this.elements = {
-        contentWrapper: this.el.find('.node-content-wrapper'),
-        container: this.el.find('.node-container'),
         bottom: this.el.find('.node-bottom'),
         top: this.el.find('.node-top'),
         ul: this.el.find('.node-body')
@@ -111,12 +70,17 @@ var JSONView = function (_EventEmitter) {
 
       // Render each child individually
       var brackets = this.getBrackets();
-      this.elements.top.html(brackets.top);
-      Object.keys(this.data).forEach(function (key, index, set) {
-        var last = index + 1 == set.length;
-        _this2.renderChild(key, last);
-      });
-      this.elements.bottom.html(brackets.bottom);
+
+      if (isEmpty(this.data)) {
+        this.elements.ul.html('' + brackets.top + brackets.bottom);
+      } else {
+        this.elements.top.html(brackets.top);
+        Object.keys(this.data).forEach(function (key, index, set) {
+          var last = index + 1 == set.length;
+          _this.renderChild(key, last);
+        });
+        this.elements.bottom.html(brackets.bottom);
+      }
     }
 
     /**
@@ -141,12 +105,16 @@ var JSONView = function (_EventEmitter) {
       li.append(left);
       this.elements.ul.append(li);
       if ('array' == type || 'object' == type) {
-        new JSONView({
-          level: this.level + 1,
-          last: last,
-          data: val,
-          el: right
-        });
+        if (isEmpty(val)) {
+          right.append(this.getLeaf(val, type, last));
+        } else {
+          new JSONView({
+            level: this.level + 1,
+            last: last,
+            data: val,
+            el: right
+          });
+        }
       } else {
         right.append(this.getLeaf(val, type, last));
       }
@@ -164,9 +132,15 @@ var JSONView = function (_EventEmitter) {
   }, {
     key: 'getLeaf',
     value: function getLeaf(val, type, last) {
-      var comma = last || type == 'key' ? '' : '' + COMMA;
-      if (type == 'string') {
+      var comma = last || type == 'key' ? '' : ',';
+      if ('string' == type) {
         val = '"' + val + '"';
+      }
+      if ('array' == type) {
+        val = '[]';
+      }
+      if ('object' == type) {
+        val = '{}';
       }
       return '<span class="' + type + '">' + val + '</span>' + comma;
     }
@@ -180,20 +154,19 @@ var JSONView = function (_EventEmitter) {
     value: function getBrackets() {
       var top = 'array' == this.type ? '[' : '{';
       var bottom = 'array' == this.type ? ']' : '}';
-      console.log(this.last);
       if (this.level > 1 && !this.last) {
-        bottom = bottom + COMMA;
+        bottom = bottom + ',';
       }
       return {
         bottom: bottom,
-        closed: '' + top + CLOSED + bottom + '}',
+        closed: '' + top + bottom + '}',
         top: top
       };
     }
   }]);
 
   return JSONView;
-}(EventEmitter);
+}();
 
 /**
  * Determine the type of input
@@ -209,12 +182,22 @@ function getType(input) {
 }
 
 /**
+ * Determine if this (object or array) is empty
+ */
+
+function isEmpty(val) {
+  var emptyArray = 'array' == getType(val) && val.length === 0;
+  var emptyObject = 'object' == getType(val) && Object.keys(val).length === 0;
+  return emptyArray || emptyObject;
+}
+
+/**
  * Exports
  */
 
 module.exports = JSONView;
 
-},{"events":82,"jquery":95,"node-uuid":98}],2:[function(require,module,exports){
+},{"jquery":95,"node-uuid":98}],2:[function(require,module,exports){
 var asn1 = exports;
 
 asn1.bignum = require('bn.js');
