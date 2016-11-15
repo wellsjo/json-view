@@ -50,6 +50,7 @@ var JSONView = function (_EventEmitter) {
 
     _this.level = options.level || 1;
     _this.data = options.data;
+    _this.last = options.last;
     _this.type = getType(_this.data);
     _this.el = $(options.el);
     _this.render();
@@ -71,13 +72,32 @@ var JSONView = function (_EventEmitter) {
 
       // Render HTML on page
       this.el.html(html);
-
-      var selector = '[' + bracketId + ']';
       var self = this;
+      var selector = '[' + bracketId + ']';
+
+      // Emit bracket hover events
       $(selector).hover(function () {
-        var elements = [$(this), self.el.find(selector)];
-        self.emit('bracket-hover', elements);
-        console.log(elements);
+        var position = $(this).hasClass('node-top') ? 'top' : 'bottom';
+        var other = $('.node-' + position + '[' + bracketId + ']');
+        var data = {
+          match: other,
+          this: $(this),
+          type: self.type
+        };
+        console.log('event firing', data);
+        self.emit('bracket-hover', data);
+      });
+
+      $(selector).click(function () {
+        var position = $(this).hasClass('node-top') ? 'top' : 'bottom';
+        var other = $('.node-' + position + '[' + bracketId + ']');
+        var data = {
+          match: other,
+          this: $(this),
+          type: self.type
+        };
+        console.log('event firing', data);
+        self.emit('bracket-click', data);
       });
 
       // Easily access elements
@@ -123,6 +143,7 @@ var JSONView = function (_EventEmitter) {
       if ('array' == type || 'object' == type) {
         new JSONView({
           level: this.level + 1,
+          last: last,
           data: val,
           el: right
         });
@@ -159,8 +180,9 @@ var JSONView = function (_EventEmitter) {
     value: function getBrackets() {
       var top = 'array' == this.type ? '[' : '{';
       var bottom = 'array' == this.type ? ']' : '}';
+      console.log(this.last);
       if (this.level > 1 && !this.last) {
-        bottom += COMMA;
+        bottom = bottom + COMMA;
       }
       return {
         bottom: bottom,
@@ -14956,13 +14978,22 @@ utils.intFromLE = intFromLE;
 module.exports={
   "_args": [
     [
-      "elliptic@^6.0.0",
+      {
+        "raw": "elliptic@^6.0.0",
+        "scope": null,
+        "escapedName": "elliptic",
+        "name": "elliptic",
+        "rawSpec": "^6.0.0",
+        "spec": ">=6.0.0 <7.0.0",
+        "type": "range"
+      },
       "/Users/wells/src/json-to-html/node_modules/browserify-sign"
     ]
   ],
   "_from": "elliptic@>=6.0.0 <7.0.0",
   "_id": "elliptic@6.3.2",
   "_inCache": true,
+  "_installable": true,
   "_location": "/elliptic",
   "_nodeVersion": "6.3.0",
   "_npmOperationalInternal": {
@@ -14970,16 +15001,17 @@ module.exports={
     "tmp": "tmp/elliptic-6.3.2.tgz_1473938837205_0.3108903462998569"
   },
   "_npmUser": {
-    "email": "fedor@indutny.com",
-    "name": "indutny"
+    "name": "indutny",
+    "email": "fedor@indutny.com"
   },
   "_npmVersion": "3.10.3",
   "_phantomChildren": {},
   "_requested": {
-    "name": "elliptic",
     "raw": "elliptic@^6.0.0",
-    "rawSpec": "^6.0.0",
     "scope": null,
+    "escapedName": "elliptic",
+    "name": "elliptic",
+    "rawSpec": "^6.0.0",
     "spec": ">=6.0.0 <7.0.0",
     "type": "range"
   },
@@ -14993,8 +15025,8 @@ module.exports={
   "_spec": "elliptic@^6.0.0",
   "_where": "/Users/wells/src/json-to-html/node_modules/browserify-sign",
   "author": {
-    "email": "fedor@indutny.com",
-    "name": "Fedor Indutny"
+    "name": "Fedor Indutny",
+    "email": "fedor@indutny.com"
   },
   "bugs": {
     "url": "https://github.com/indutny/elliptic/issues"
@@ -15031,12 +15063,11 @@ module.exports={
   ],
   "gitHead": "cbace4683a4a548dc0306ef36756151a20299cd5",
   "homepage": "https://github.com/indutny/elliptic",
-  "installable": true,
   "keywords": [
-    "Cryptography",
     "EC",
     "Elliptic",
-    "curve"
+    "curve",
+    "Cryptography"
   ],
   "license": "MIT",
   "main": "lib/elliptic.js",
@@ -15048,6 +15079,7 @@ module.exports={
   ],
   "name": "elliptic",
   "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/indutny/elliptic.git"
@@ -29656,7 +29688,7 @@ WritableState.prototype.getBuffer = function getBuffer() {
 // Test _writableState for inheritance to account for Duplex streams,
 // whose prototype chain only points to Readable.
 var realHasInstance;
-if (typeof Symbol === 'function' && Symbol.hasInstance) {
+if (typeof Symbol === 'function' && Symbol.hasInstance && typeof Function.prototype[Symbol.hasInstance] === 'function') {
   realHasInstance = Function.prototype[Symbol.hasInstance];
   Object.defineProperty(Writable, Symbol.hasInstance, {
     value: function (object) {

@@ -11,20 +11,25 @@
   <script>
     const input = {
       hello: "world",
-      val: 5,
-      on: false,
-      arr: [1, 2, null, {
-        some: "val",
-        oh: [true, 434, "hell world lol"],
-        that: 4343.23042,
-        kay: true
+      troo: [{
+        so: "ry"
+      }, {
+        so: "bl"
       }],
-      some: null
+      val: "lol"
     }
     const el = document.querySelector('.output')
-    new JSONView({
+    let v = new JSONView({
       el: el,
       data: input
+    })
+
+    v.on('bracket-hover', function(x) {
+      console.log('event caught', x)
+    })
+
+    v.on('bracket-click', x => {
+      console.log('click', x)
     })
   </script>
 </body>

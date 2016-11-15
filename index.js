@@ -35,6 +35,7 @@ class JSONView extends EventEmitter {
     super()
     this.level = options.level || 1
     this.data = options.data
+    this.last = options.last
     this.type = getType(this.data)
     this.el = $(options.el)
     this.render()
@@ -57,13 +58,32 @@ class JSONView extends EventEmitter {
 
     // Render HTML on page
     this.el.html(html)
-
-    let selector = `[${bracketId}]`
     let self = this
+    let selector = `[${bracketId}]`
+
+    // Emit bracket hover events
     $(selector).hover(function() {
-      let elements = [$(this), self.el.find(selector)]
-      self.emit('bracket-hover', elements)
-      console.log(elements)
+      let position = $(this).hasClass('node-top') ? 'top' : 'bottom'
+      let other = $(`.node-${position}[${bracketId}]`)
+      let data = {
+        match: other,
+        this: $(this),
+        type: self.type
+      }
+      console.log('event firing', data)
+      self.emit('bracket-hover', data)
+    })
+
+    $(selector).click(function() {
+      let position = $(this).hasClass('node-top') ? 'top' : 'bottom'
+      let other = $(`.node-${position}[${bracketId}]`)
+      let data = {
+        match: other,
+        this: $(this),
+        type: self.type
+      }
+      console.log('event firing', data)
+      self.emit('bracket-click', data)
     })
 
     // Easily access elements
@@ -107,6 +127,7 @@ class JSONView extends EventEmitter {
     if ('array' == type || 'object' == type) {
       new JSONView({
         level: this.level + 1,
+        last: last,
         data: val,
         el: right
       })
@@ -139,8 +160,9 @@ class JSONView extends EventEmitter {
   getBrackets() {
     let top = 'array' == this.type ? '[' : '{'
     let bottom = 'array' == this.type ? ']' : '}'
+    console.log(this.last)
     if (this.level > 1 && !this.last) {
-      bottom += COMMA
+      bottom = bottom + COMMA
     }
     return {
       bottom: bottom,
