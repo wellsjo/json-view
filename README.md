@@ -11,6 +11,11 @@ HTML
 ```
 JS
 ```javascript
+const data = {
+  hello: "world",
+  values: [1, 2, 3]
+}
+const el = $('#output')
 const html = new JSONView({
   data: data,
   el: el
