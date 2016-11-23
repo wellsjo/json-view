@@ -21,3 +21,5 @@ const html = new JSONView({
   el: el
 })
 ```
+Output:  
+![Demo](http://i.imgur.com/m9XMLVN.png)
